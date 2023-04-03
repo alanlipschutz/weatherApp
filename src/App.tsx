@@ -18,6 +18,7 @@ function App() {
 
   // input states
   const [cityInput, setCityInput] = useState<string>('');
+  const [useGeolocalization, setUseGeolocalization] = useState<boolean>(false);
   const [days, setDays] = useState<string>('7');
 
   // response state
@@ -39,6 +40,7 @@ function App() {
     return () => {
       abortController.abort();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   useEffect(() => {
@@ -56,6 +58,31 @@ function App() {
     setTheme(event.target.checked);
   };
 
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUseGeolocalization(true);
+          setCityInput(
+            `${position.coords.latitude.toString()},${position.coords.longitude.toString()}`
+          );
+        },
+        (error) => {
+          console.log(error);
+        }
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    useGeolocalization && onSearch(undefined, abortController);
+
+    return () => {
+      abortController.abort();
+    };
+  });
+
   const onSearch = async (
     event?: React.FormEvent<HTMLFormElement>,
     abortController: AbortController | boolean = false
@@ -72,7 +99,10 @@ function App() {
       );
       setWeatherResponse(data);
       setForecastList(data.forecast.forecastday);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'canceled') {
+        return;
+      }
       setOpenSnack(true);
       setSeverity(severityTypes.error);
       setSnackMessage(`something wrong happend\n ${JSON.stringify(error)}`);
@@ -81,6 +111,7 @@ function App() {
 
   const handleChangeString = (event: React.ChangeEvent<HTMLInputElement>) => {
     setCityInput(event.target.value);
+    setUseGeolocalization(false);
   };
 
   const selectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
